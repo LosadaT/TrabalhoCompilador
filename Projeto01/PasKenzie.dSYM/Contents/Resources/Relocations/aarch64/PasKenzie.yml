@@ -1,5 +1,5 @@
 ---
 triple:          'arm64-apple-darwin'
-binary-path:     '/Users/francisco/Documents/Faculdade/2025.2/Compiladores/Projeto/Projeto01/PasKenzie'
+binary-path:     paskenzie
 relocations:     []
 ...
