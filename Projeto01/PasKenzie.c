@@ -12,7 +12,7 @@ char *buffer;
 typedef enum{
     ERRO,
     IDENTIFICADOR,
-    NUMERO,
+    CONSTINT,
     OP_SOMA,
     OP_MULT,
     OP_SUB,
@@ -44,7 +44,14 @@ typedef enum{
     MAIORIGUAL,
     IGUAL,
     DIFERENTE,
-    CONSTCHAR
+    CONSTCHAR,
+    COMENTARIO,
+    PONTOVIRGULA,
+    VIRGULA,
+    DOISPONTOS,
+    ABREPARENTESES,
+    FECHAPARENTESES,
+    PONTO
 }TAtomo;
 
 typedef struct{
@@ -162,7 +169,6 @@ TInfoAtomo obter_atomo() {
             buffer++;
         }
     }
-
     infoAtomo.linha = nLinha;
 
     if(isdigit(*buffer)){
@@ -183,11 +189,11 @@ TInfoAtomo obter_atomo() {
     }
     else if (*buffer == ';') {
         buffer++;
-        infoAtomo.atomo = ';';
+        infoAtomo.atomo = PONTOVIRGULA;
     }
     else if (*buffer == ',') {
         buffer++;
-        infoAtomo.atomo = ',';
+        infoAtomo.atomo = VIRGULA;
     }
     else if (*buffer == ':') {
         if (*(buffer+1) == '=') {
@@ -195,20 +201,20 @@ TInfoAtomo obter_atomo() {
             infoAtomo.atomo = ASSIGN;
         } else {
             buffer++;
-            infoAtomo.atomo = ':';
+            infoAtomo.atomo = DOISPONTOS;
         }
     }
     else if (*buffer == '(') {
         buffer++;
-        infoAtomo.atomo = '(';
+        infoAtomo.atomo = ABREPARENTESES;
     }
     else if (*buffer == ')') {
         buffer++;
-        infoAtomo.atomo = ')';
+        infoAtomo.atomo = FECHAPARENTESES;
     }
     else if (*buffer == '.') {
         buffer++;
-        infoAtomo.atomo = '.';
+        infoAtomo.atomo = PONTO;
     }
     else if (*buffer == '+') {
         buffer++;
@@ -303,7 +309,7 @@ void reconhece_numero(TInfoAtomo *infoAtomo){
             valor /= pow(10, expo);
     }
     infoAtomo->atributo.numero = valor;
-    infoAtomo->atomo = NUMERO;
+    infoAtomo->atomo = CONSTINT;
 }
 
 void reconhe_id(TInfoAtomo *infoAtomo){
@@ -341,9 +347,9 @@ void reconhe_id(TInfoAtomo *infoAtomo){
 void program() {
     consome(PROGRAM);
     consome(IDENTIFICADOR);
-    consome(';');
+    consome(PONTOVIRGULA);
     block();
-    consome('.');
+    consome(PONTO);
 }
 
 // <block> ::= <variable_declaration_part> <statement_part>
@@ -359,10 +365,10 @@ void variable_declaration_part() {
     if( lookahead == VAR ){
         consome(VAR);
         variable_declaration();
-        consome(';');
+        consome(PONTOVIRGULA);
         while( lookahead == IDENTIFICADOR ){    
             variable_declaration();
-            consome(';');
+            consome(PONTOVIRGULA);
         } 
     }  
 }
@@ -370,11 +376,11 @@ void variable_declaration_part() {
     //FIRST(<variable_declaration>) = { identifier }
 void variable_declaration() {
     consome(IDENTIFICADOR);
-    while(lookahead == ','){
-        consome(',');
+    while(lookahead == VIRGULA){
+        consome(VIRGULA);
         consome(IDENTIFICADOR);
     }
-    consome(':');
+    consome(DOISPONTOS);
     type();
 }
 
@@ -397,8 +403,8 @@ void type() {
 void statement_part() {
     consome(BEGIN);
     statement();
-    while( lookahead == ';' ){
-        consome(';');
+    while(lookahead == PONTOVIRGULA){
+        consome(PONTOVIRGULA);
         statement();
     }
     consome(END);
@@ -432,26 +438,26 @@ void assignment_statement() {
     //FIRST(<read_statement>) = { read }
 void read_statement() {
     consome(READ);
-    consome('(');
+    consome(ABREPARENTESES);
     consome(IDENTIFICADOR);
-    while( lookahead == ',' ){
-        consome(',');
+    while(lookahead == VIRGULA){
+        consome(VIRGULA);
         consome(IDENTIFICADOR);
     }
-    consome(')');
+    consome(FECHAPARENTESES);
 }
 
 // <write_statement> ::= write ‘(’ identifier { ‘,’ identifier } ‘)’
     //FIRST(<write_statement>) = { write }
 void write_statement() {
     consome(WRITE);
-    consome('(');
+    consome(ABREPARENTESES);
     consome(IDENTIFICADOR);
-    while( lookahead == ',' ){
-        consome(',');
+    while(lookahead == VIRGULA){
+        consome(VIRGULA);
         consome(IDENTIFICADOR);
     }
-    consome(')');
+    consome(FECHAPARENTESES);
 }
 
 // <if_statement> ::= if <expression> then <statement> [ else <statement> ]
@@ -486,21 +492,21 @@ void expression() {
 // <relational_operator> ::= ‘<’ | ‘<=’ | ‘>’ | ‘>=’ | ‘=’ | ‘<>’ | or | and
     //FIRST(<relational_operator>) = { <, <=, >, >=, =, <>, or, and }
 void relational_expression() {
-    if( lookahead == MENOR )
+    if(lookahead == MENOR)
         consome(lookahead);
-    else if( lookahead == MENORIGUAL )
+    else if(lookahead == MENORIGUAL)
         consome(lookahead);
-    else if( lookahead == MAIOR )
+    else if(lookahead == MAIOR)
         consome(lookahead);
-    else if( lookahead == MAIORIGUAL )
+    else if(lookahead == MAIORIGUAL)
         consome(lookahead);
-    else if( lookahead == IGUAL )
+    else if(lookahead == IGUAL)
         consome(lookahead);
-    else if( lookahead == DIFERENTE )
+    else if(lookahead == DIFERENTE)
         consome(lookahead);
-    else if( lookahead == OR )
+    else if(lookahead == OR)
         consome(lookahead);
-    else if( lookahead == AND )
+    else if(lookahead == AND)
         consome(lookahead);
     simple_expression();
 }
@@ -518,9 +524,9 @@ void simple_expression() {
 // <adding_operator> ::= ‘+’ | ‘-’
     //FIRST(<adding_operator>) = { +, - }
 void adding_operator() {
-    if( lookahead == OP_SOMA )
+    if(lookahead == OP_SOMA)
         consome(OP_SOMA);
-    else if( lookahead == OP_SUB )
+    else if(lookahead == OP_SUB)
         consome(OP_SUB);
 }
 
@@ -537,9 +543,9 @@ void term() {
 // <multiplying_operator> ::= ‘*’ | ‘div’
     //FIRST(<multiplying_operator>) = { *, div }
 void multiplying_operator() {
-    if( lookahead == OP_MULT )
+    if(lookahead == OP_MULT)
         consome(OP_MULT);
-    else if( lookahead == OP_DIV )
+    else if(lookahead == OP_DIV)
         consome(OP_DIV);
 }
 
@@ -548,655 +554,114 @@ void multiplying_operator() {
 void factor() {
     if( lookahead == IDENTIFICADOR )
         consome(IDENTIFICADOR);
-    else if( lookahead == NUMERO )
-        consome(NUMERO);
-    else if( lookahead == CONSTCHAR )
+    else if(lookahead == CONSTINT)
+        consome(CONSTINT);
+    else if(lookahead == CONSTCHAR)
         consome(CONSTCHAR);
-    else if( lookahead == '(' ){
-        consome('(');
+    else if(lookahead == ABREPARENTESES){
+        consome(ABREPARENTESES);
         expression();
-        consome(')');
+        consome(FECHAPARENTESES);
     }
-    else if( lookahead == NOT ){
+    else if(lookahead == NOT){
         consome(NOT);
         factor();
     }
-    else if( lookahead == TRUE )
+    else if(lookahead == TRUE)
         consome(TRUE);
-    else if( lookahead == FALSE )
+    else if(lookahead == FALSE)
         consome(FALSE);
 }
 
-
-void consome( TAtomo atomo ){
-    if( lookahead == atomo ){
-        if (lookahead == IDENTIFICADOR) {
-            printf("\n#%2d: identifier: %s", infoAtomo.linha, infoAtomo.atributo.ID);
+void consome(TAtomo atomo) {
+    if (lookahead == atomo) {
+        switch (lookahead) {
+            case IDENTIFICADOR:
+                printf("\n#%2d:identifier : %s", infoAtomo.linha, infoAtomo.atributo.ID);
+                break;
+            case CONSTINT:
+                printf("\n#%2d:NUMERO : %g", infoAtomo.linha, infoAtomo.atributo.numero);
+                break;
+            case CONSTCHAR:
+                printf("\n#%2d:CONSTCHAR : '%c'", infoAtomo.linha, infoAtomo.atributo.ch);
+                break;
+            case PONTOVIRGULA:
+                printf("\n#%2d:ponto_virgula", infoAtomo.linha);
+                break;
+            case VIRGULA:
+                printf("\n#%2d:virgula", infoAtomo.linha);
+                break;
+            case DOISPONTOS:
+                printf("\n#%2d:dois_pontos", infoAtomo.linha);
+                break;
+            case ABREPARENTESES:
+                printf("\n#%2d:abre_par", infoAtomo.linha);
+                break;
+            case FECHAPARENTESES:
+                printf("\n#%2d:fecha_par", infoAtomo.linha);
+                break;
+            case PONTO:
+                printf("\n#%2d:ponto_final", infoAtomo.linha);
+                break;
+            case PROGRAM:
+                printf("\n#%2d:program", infoAtomo.linha);
+                break;
+            case VAR:
+                printf("\n#%2d:var", infoAtomo.linha);
+                break;
+            case INTEGER:
+                printf("\n#%2d:integer", infoAtomo.linha);
+                break;
+            case CHAR:
+                printf("\n#%2d:char", infoAtomo.linha);
+                break;
+            case BEGIN:
+                printf("\n#%2d:begin", infoAtomo.linha);
+                break;
+            case END:
+                printf("\n#%2d:end", infoAtomo.linha);
+                break;
+            case READ:
+                printf("\n#%2d:read", infoAtomo.linha);
+                break;
+            case WRITE:
+                printf("\n#%2d:write", infoAtomo.linha);
+                break;
+            case MENOR:
+                printf("\n#%2d:menor", infoAtomo.linha);
+                break;
+            case MENORIGUAL:
+                printf("\n#%2d:menor_igual", infoAtomo.linha);
+                break;
+            case MAIOR:
+                printf("\n#%2d:maior", infoAtomo.linha);
+                break;
+            case MAIORIGUAL:
+                printf("\n#%2d:maior_igual", infoAtomo.linha);
+                break;
+            case DIFERENTE:
+                printf("\n#%2d:diferente", infoAtomo.linha);
+                break;
+            case ASSIGN:
+                printf("\n#%2d:atribuição", infoAtomo.linha);
+            
+            // case COMENTARIO:
+            //     printf("\n#%2d:comentario", infoAtomo.linha);
+            //     break;
+            default:
+                // printf("\n#%2d:%s", infoAtomo.linha, strMensagem[lookahead]);
+                printf("");
         }
-        else if (lookahead == NUMERO) {
-            printf("\n#%2d: NUMERO: %g", infoAtomo.linha, infoAtomo.atributo.numero);
-        }
-        else if (lookahead == CONSTCHAR) {
-            printf("\n#%2d: CONSTCHAR: '%c'", infoAtomo.linha, infoAtomo.atributo.ch);
-        }
-        //else if(lookahead == )
-
         infoAtomo = obter_atomo();
         lookahead = infoAtomo.atomo;
     }
-    else{
-        printf("\n#%2d:Erro sintatico: esperado [%s] encontrado [%s]\n",infoAtomo.linha,strMensagem[atomo],strMensagem[lookahead]);
+    else {
+        printf("\n#%2d:erro sintatico, esperado [%s] encontrado [%s]\n",
+            infoAtomo.linha, strMensagem[atomo], strMensagem[lookahead]);
         exit(1);
     }
 }
 
-/*
-#include <stdio.h>
-#include <ctype.h>
-#include <string.h>
-#include <stdlib.h> //atof
-#define MAX_BUFFER 10000
-
-char buffer_global[MAX_BUFFER];
-char *buffer;
-
-typedef enum{
-    ERRO,
-    IDENTIFICADOR,
-    NUMERO,
-    OP_SOMA,
-    OP_MULT,
-    OP_SUB,
-    OP_DIV,
-    EOS,
-    PROGRAM,
-    VAR,
-    CHAR,
-    INTEGER,
-    BOOLEAN,
-    READ,
-    WRITE,
-    IF,
-    THEN,
-    ELSE,
-    WHILE,
-    DO,
-    BEGIN,
-    END,
-    ASSIGN,
-    OR,
-    AND,
-    NOT,
-    TRUE,
-    FALSE,
-    MENOR,
-    MENORIGUAL,
-    MAIOR,
-    MAIORIGUAL,
-    IGUAL,
-    DIFERENTE,
-    CONSTCHAR
-}TAtomo;
-
-typedef struct{
-    TAtomo atomo;
-    int linha;
-    union{
-        float numero;
-        char ID[16];
-        char ch;
-    }atributo;
-}TInfoAtomo;
-
-typedef struct {
-    const char *palavra;
-    TAtomo atomo;
-} PalavraReservada;
-
-PalavraReservada reservadas[] = {
-    {"program", PROGRAM},
-    {"var", VAR},
-    {"char", CHAR},
-    {"integer", INTEGER},
-    {"boolean", BOOLEAN},
-    {"read", READ},
-    {"write", WRITE},
-    {"if", IF},
-    {"then", THEN},
-    {"else", ELSE},
-    {"while", WHILE},
-    {"do", DO},
-    {"begin", BEGIN},
-    {"end", END},
-    {"or", OR},
-    {"and", AND},
-    {"not", NOT},
-    {"true", TRUE},
-    {"false", FALSE},
-    {"div", OP_DIV},
-    {NULL, ERRO}
-};
-
-char lexema[20];
-int nLinha;
-char *buffer = "program xxx;";
-TAtomo lookahead;
-TInfoAtomo infoAtomo;
-char *strMensagem[] = {"erro lexico", "IDENTIFICADOR", "NUMERO", "+", "*", "EOS", "PROGRAM", "VAR", "CHAR", "INTEGER", "BOOLEAN", "READ", "WRITE", "IF", "THEN", "ELSE", "WHILE", "DO", "BEGIN", "END", ":=", "OR", "AND", "NOT", "TRUE", "FALSE", "<", "<=", ">", ">=", "=", "<>", "DIV", "CONSTCHAR"};
-
-TInfoAtomo obter_atomo();
-void reconhece_numero(TInfoAtomo *infoAtomo);
-void reconhe_id(TInfoAtomo *infoAtomo);
-void consome(TAtomo atomo);
-
-void program();
-void block();
-void variable_declaration_part();
-void variable_declaration();
-void type();
-void statement_part();
-void statement();
-void assignment_statement();
-void read_statement();
-void write_statement();
-void if_statement();
-void while_statement();
-void expression();
-void relational_expression();
-void simple_expression();
-void adding_operator();
-void term();
-void multiplying_operator();
-void factor();
-
-int main(){
-    nLinha = 1;
-    FILE *f = fopen("codigo.txt", "r");
-    if (!f) {
-        printf("Erro ao abrir codigo.txt\n");
-        return 1;
-    }
-    size_t lidos = fread(buffer_global, 1, MAX_BUFFER-1, f);
-    buffer_global[lidos] = '\0';
-    fclose(f);
-    buffer = buffer_global;
-
-    printf("Analisando: %s",buffer);
-    infoAtomo = obter_atomo();
-    lookahead = infoAtomo.atomo;
-    program();
-    consome(EOS);
-    printf("\nfim de programa. %d linhas analisadas\n", infoAtomo.linha);
-
-    return 0;
-}
-
-TInfoAtomo obter_atomo() {
-    TInfoAtomo infoAtomo;
-
-    infoAtomo.atomo = ERRO;
-    while(*buffer == '\n' || *buffer == ' ' || *buffer == '\t' || *buffer == '\r'){
-        if(*buffer == '\n')
-            nLinha++;
-        buffer++;
-    }
-
-    while (*buffer == '(' && *(buffer+1) == '*') {
-        buffer += 2;
-        while (!(*buffer == '*' && *(buffer+1) == ')') && *buffer != '\0') {
-            if (*buffer == '\n') nLinha++;
-            buffer++;
-        }
-        if (*buffer == '*' && *(buffer+1) == ')') buffer += 2;
-        while (*buffer == ' ' || *buffer == '\t' || *buffer == '\n' || *buffer == '\r') {
-            if (*buffer == '\n') nLinha++;
-            buffer++;
-        }
-    }
-
-    infoAtomo.linha = nLinha;
-
-    if(isdigit(*buffer)){
-        reconhece_numero(&infoAtomo);
-    }
-    else if(islower(*buffer) || isupper(*buffer) || *buffer == '_')
-        reconhe_id(&infoAtomo);
-
-    else if (*buffer == '\'') {
-        buffer++;
-        if (*buffer != '\0' && *(buffer+1) == '\'') {
-            infoAtomo.atributo.ch = *buffer;
-            buffer += 2;
-            infoAtomo.atomo = CONSTCHAR;
-        } else {
-            infoAtomo.atomo = ERRO;
-        }
-    }
-
-    else if (*buffer == ';') {
-        buffer++;
-        infoAtomo.atomo = ';';
-    }
-
-    else if (*buffer == ',') {
-        buffer++;
-        infoAtomo.atomo = ',';
-    }
-
-    else if (*buffer == ':') {
-        if (*(buffer+1) == '=') {
-            buffer += 2;
-            infoAtomo.atomo = ASSIGN;
-        } else {
-            buffer++;
-            infoAtomo.atomo = ':';
-        }
-    }
-
-    else if (*buffer == '(') {
-        buffer++;
-        infoAtomo.atomo = '(';
-    }
-
-    else if (*buffer == ')') {
-        buffer++;
-        infoAtomo.atomo = ')';
-    }
-
-    else if (*buffer == '.') {
-        buffer++;
-        infoAtomo.atomo = '.';
-    }
-
-    else if (*buffer == '+') {
-        buffer++;
-        infoAtomo.atomo = OP_SOMA;
-    }
-
-    else if (*buffer == '-') {
-        buffer++;
-        infoAtomo.atomo = OP_SUB;
-    }
-
-    else if (*buffer == '*') {
-        buffer++;
-        infoAtomo.atomo = OP_MULT;
-    }
-
-    else if (*buffer == '/') {
-        buffer++;
-        infoAtomo.atomo = OP_DIV;
-    }
-
-    else if (*buffer == '<') {
-        if (*(buffer+1) == '=') {
-            buffer += 2;
-            infoAtomo.atomo = MENORIGUAL;
-        } 
-        else if (*(buffer+1) == '>') {
-            buffer += 2;
-            infoAtomo.atomo = DIFERENTE;
-        } 
-        else {
-            buffer++;
-            infoAtomo.atomo = MENOR;
-        }
-    }
-
-    else if (*buffer == '>') {
-        if (*(buffer+1) == '=') {
-            buffer += 2;
-            infoAtomo.atomo = MAIORIGUAL;
-        } else {
-            buffer++;
-            infoAtomo.atomo = MAIOR;
-        }
-    }
-
-    else if (*buffer == '=') {
-        buffer++;
-        infoAtomo.atomo = IGUAL;
-    }
-
-    else if (*buffer == '\0')
-        infoAtomo.atomo = EOS;
-
-    return infoAtomo;
-}
-
-
-void reconhece_numero(TInfoAtomo *infoAtomo){
-    char *ini_lexema = buffer;
-q1:
-    if( isdigit(*buffer) ){
-        buffer++;
-        goto q1;
-    }
-    if( *buffer == '.' ){
-        buffer++;
-        goto q2;
-    }
-    return;
-
-q2:
-    if( isdigit(*buffer) ){
-        buffer++;
-        goto q3;
-    }
-    return;
-q3:
-    if( isdigit(*buffer) ){
-        buffer++;
-        goto q3;
-    }
-    if( isalpha(*buffer)){
-        return;
-    }
-    // recorta lexama 
-    strncpy(lexema,ini_lexema,buffer-ini_lexema);
-    lexema[buffer-ini_lexema] = '\0'; // aqui temos uma string
-    infoAtomo->atributo.numero = atof(lexema);
-    infoAtomo->atomo = NUMERO;
-
-    return;
-
-}
-
-
-void reconhece_numero(TInfoAtomo *infoAtomo){
-    char *ini_lexema = buffer;
-    int is_expo = 0;
-
-    while (isdigit(*buffer)) buffer++;
-
-    if (*buffer == 'd' || *buffer == 'D') {
-        is_expo = 1;
-        buffer++;
-        if (*buffer == '+' || *buffer == '-') buffer++;
-        if (!isdigit(*buffer)) {
-            infoAtomo->atomo = ERRO;
-            return;
-        }
-        while (isdigit(*buffer)) buffer++;
-    }
-
-    int tam = buffer - ini_lexema;
-    strncpy(lexema, ini_lexema, tam);
-    lexema[tam] = '\0';
-
-    infoAtomo->atributo.numero = atof(lexema);
-    infoAtomo->atomo = NUMERO;
-}
-
-
-void reconhe_id(TInfoAtomo *infoAtomo){
-    char *ini_lexema = buffer;
-    int tam = 0;
-
-q1:
-    if(islower(*buffer) || isupper(*buffer) || *buffer == '_'){
-        buffer++;
-        tam++;
-        goto q1;
-    }
-    if(isdigit(*buffer)){
-        return; // sai com erro
-    }
-    // if (tam > 15) {
-    //     infoAtomo->atomo = ERRO;
-    //     return; // sai com erro
-    // }
-    // preenche o atributo do atomo IDENTIFICADOR
-    // strncpy(infoAtomo->atributo.ID,ini_lexema,buffer-ini_lexema);
-    // infoAtomo->atributo.ID[buffer-ini_lexema] = '\0'; // aqui temos um IDENTIFICADOR
-    // infoAtomo->atomo = IDENTIFICADOR;
-    strncpy(infoAtomo->atributo.ID, ini_lexema, buffer-ini_lexema);
-    infoAtomo->atributo.ID[buffer-ini_lexema] = '\0';
-    infoAtomo->atomo = IDENTIFICADOR;
-
-    // Verifica se é palavra reservada
-    for (int i = 0; reservadas[i].palavra != NULL; i++) {
-        if (strcmp(infoAtomo->atributo.ID, reservadas[i].palavra) == 0) {
-            infoAtomo->atomo = reservadas[i].atomo;
-            return;
-    }
-}
-infoAtomo->atomo = IDENTIFICADOR;
-    return;
-}
-
-// ASDR
-// <program> ::= program identifier ‘;‘ <block> ‘.'
-    //FIRST(<program>) = { program }
-void program() {
-    consome(PROGRAM);
-    consome(IDENTIFICADOR);
-    consome(';');
-    block();
-    consome('.');
-}
-
-// <block> ::= <variable_declaration_part> <statement_part>
-    //FIRST(<block>) = { var, begin }
-void block() {
-    variable_declaration_part();
-    statement_part();
-}
-
-// <variable_declaration_part> ::= [ var <variable_declaration> ‘;’ { <variable_declaration> ‘;’ } ]
-    // FIRST(<variable_declaration_part>) = { var, λ }
-void variable_declaration_part() {
-    if( lookahead == VAR ){
-        consome(VAR);
-        variable_declaration();
-        consome(';');
-        while( lookahead == IDENTIFICADOR ){    
-            variable_declaration();
-            consome(';');
-        } 
-    }  
-}
-// <variable_declaration> ::= identifier { ‘,’ identifier } ‘:’ <type>
-    //FIRST(<variable_declaration>) = { identifier }
-void variable_declaration() {
-    consome(IDENTIFICADOR);
-    while(lookahead == ','){
-        consome(',');
-        consome(IDENTIFICADOR);
-    }
-    consome(':');
-    type();
-}
-// <type> ::= char | integer | boolean
-    //FIRST(<type>) = { char, integer, boolean }
-void type() {
-    if(lookahead == CHAR) {
-        consome(lookahead);
-    }
-    else if( lookahead == INTEGER ) {
-        consome(lookahead);
-    }   
-    else if( lookahead == BOOLEAN ) {
-        consome(lookahead);   
-    }
-}
-// <statment_part> ::= begin <statement> { ‘;’ <statement> } end
-    //FIRST(<statement_part>) = { begin }
-    void statement_part() {
-        consome(BEGIN);
-        statement();
-        while( lookahead == ';' ){
-            consome(';');
-            statement();
-        }
-        consome(END);
-    }
-// <statement> ::= <assignment_statement> | <read_statement> | <write_statement> | <if_statement> | <while_statement> | <statement_part>
-    //FIRST(<statement>) = { identifier, read, write, if, while, begin }
-    void statement() {
-        if( lookahead == IDENTIFICADOR )
-            assignment_statement();
-        else if( lookahead == READ )
-            read_statement();
-        else if( lookahead == WRITE )
-            write_statement();
-        else if( lookahead == IF )
-            if_statement();
-        else if( lookahead == WHILE )
-            while_statement();
-        else if( lookahead == BEGIN )
-            statement_part();
-    }
-// <assignment_statement> ::= identifier ‘:=’ <expression>
-    //FIRST(<assignment_statement>) = { identifier }
-    void assignment_statement() {
-        consome(IDENTIFICADOR);
-        consome(ASSIGN);
-        expression();
-    }
-// <read_statement> ::= read ‘(’ identifier { ‘,’ identifier } ‘)’
-    //FIRST(<read_statement>) = { read }
-    void read_statement() {
-        consome(READ);
-        consome('(');
-        consome(IDENTIFICADOR);
-        while( lookahead == ',' ){
-            consome(',');
-            consome(IDENTIFICADOR);
-        }
-        consome(')');
-    }
-// <write_statement> ::= write ‘(’ identifier { ‘,’ identifier } ‘)’
-    //FIRST(<write_statement>) = { write }
-    void write_statement() {
-        consome(WRITE);
-        consome('(');
-        consome(IDENTIFICADOR);
-        while( lookahead == ',' ){
-            consome(',');
-            consome(IDENTIFICADOR);
-        }
-        consome(')');
-    }
-// <if_statement> ::= if <expression> then <statement> [ else <statement> ]
-    //FIRST(<if_statement>) = { if }
-    void if_statement() {
-        consome(IF);
-        expression();
-        consome(THEN);
-        statement();
-        if( lookahead == ELSE ){
-            consome(ELSE);
-            statement();
-        }
-    }
-// <while_statement> ::= while <expression> do <statement>
-    //FIRST(<while_statement>) = { while }
-    void while_statement() {
-        consome(WHILE);
-        expression();
-        consome(DO);
-        statement();
-    }
-// <expression> ::= <simple_expression> [ <relational_operator> <simple expression> ]
-    //FIRST(<expression>) = { identifier, constint, constchar, (, not, true, false }
-    void expression() {
-        simple_expression();
-        if( lookahead == MENOR || lookahead == MENORIGUAL || lookahead == MAIOR || lookahead == MAIORIGUAL || lookahead == IGUAL || lookahead == DIFERENTE || lookahead == OR || lookahead == AND )
-            relational_expression();
-    }
-
-// <relational_operator> ::= ‘<>’ | ‘<’ | ‘<=’ | ‘>=’ | ‘>’ | ‘=’ | or | and
-    //FIRST(<relational_operator>) = { <>, <, <=, >=, >, =, or, and }
-    void relational_expression() {
-        if( lookahead == MENOR )
-            consome(lookahead);
-        else if( lookahead == MENORIGUAL )
-            consome(lookahead);
-        else if( lookahead == MAIOR )
-            consome(lookahead);
-        else if( lookahead == MAIORIGUAL )
-            consome(lookahead);
-        else if( lookahead == IGUAL )
-            consome(lookahead);
-        else if( lookahead == DIFERENTE )
-            consome(lookahead);
-        else if( lookahead == OR )
-            consome(lookahead);
-        else if( lookahead == AND )
-            consome(lookahead);
-        simple_expression();
-    }
-// <simple_expression> ::= <term> { <adding_operator> <term> }
-    //FIRST(<simple_expression>) = { identifier, constint, constchar, (, not, true, false }
-    void simple_expression() {
-        term();
-        while(lookahead == OP_SOMA){
-            adding_operator();
-            term();
-        }
-    }
-// <adding_operator> ::= ‘+’ | ‘-’
-    //FIRST(<adding_operator>) = { +, - }
-    void adding_operator() {
-        if( lookahead == OP_SOMA )
-            consome(OP_SOMA);
-    }
-// <term> ::= <factor> { <multiplying_operator> <factor> }
-    //FIRST(<term>) = { identifier, constint, constchar, (, not, true, false }
-    void term() {
-        factor();
-        while(lookahead == OP_MULT){
-            multiplying_operator();
-            factor();
-        }
-    }
-// <multiplying_operator> ::= ‘*’ | ‘div’
-    //FIRST(<multiplying_operator>) = { *, div }
-    void multiplying_operator() {
-        if( lookahead == OP_MULT )
-            consome(lookahead);
-    }
-// <factor> ::= identifier | constint | constchar | ‘(’ <expression> ‘)’ | not <factor> | true | false
-    //FIRST(<factor>) = { identifier, constint, constchar, (, not, true, false }
-    void factor() {
-        if( lookahead == IDENTIFICADOR )
-            consome(IDENTIFICADOR);
-        else if( lookahead == NUMERO )
-            consome(NUMERO);
-        else if( lookahead == '(' ){
-            consome('(');
-            expression();
-            consome(')');
-        }
-        else if( lookahead == NOT ){
-            consome(NOT);
-            factor();
-        }
-        else if( lookahead == TRUE )
-            consome(TRUE);
-        else if( lookahead == FALSE )
-            consome(FALSE);
-    }
-
-void consome( TAtomo atomo ){
-    if( lookahead == atomo ){
-        if (lookahead == IDENTIFICADOR)
-            printf("\nIDENTIFICADOR: %s", infoAtomo.atributo.ID);
-        else if (lookahead == NUMERO)
-            printf("\nNUMERO: %g", infoAtomo.atributo.numero);
-        else if (lookahead == CONSTCHAR)
-            printf("\nCONSTCHAR: '%c'", infoAtomo.atributo.ch);
-
-        infoAtomo = obter_atomo();
-        lookahead = infoAtomo.atomo;
-    }
-    else{
-        printf("\n#%2d:Erro sintatico: esperado [%s] encontrado [%s]\n",infoAtomo.linha,strMensagem[atomo],strMensagem[lookahead]);
-        //exit(1);
-    }
-}
-*/
 /*
 A sintaxe da linguagem PasKenzie é descrita por uma gramática na notação EBNF, vale ressaltar que a notação
 EBNF utiliza os símbolos especiais |, {, }, [, ] (, ) na sua metalinguagem1
@@ -1259,4 +724,92 @@ Exemplos de constantes inteiras: 1, 000, 124, 12d2 (=1200), 12d+2 (=1200)
 Importante: O analisador léxico deve retornar o valor número que gerou o átomo constint utilizando a
 estrutura TInfoAatomo preenchendo o campo atributo.numero, que depois será impresso na saída do
 compilador.
+*/
+/*
+Execução do Compilador
+O compilador deve ler o arquivo fonte, com o nome informado por linha de comando, e informar, na tela do
+computador, a linha e a descrição de todos os átomos reconhecidos no arquivo fonte, o número de linhas
+analisadas caso o programa esteja sintaticamente correto.
+Abaixo temos um exemplo de arquivo fonte em PasKenzie, sem erros léxicos ou sintáticos, e sua respectiva saída
+na tela:
+Arquivo fonte de entrada.
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+(*
+*)
+program ex1;
+var
+programa le dois numeros inteiros e encontra o maior
+num_1, num_2:integer;
+maior:integer;
+teste:char;
+begin
+read(num_1,num_2);
+if num_1 > num_2 then
+maior := num_1
+else
+maior := num_2;
+teste := ‘f’; (* so pra testar o char *)
+write(maior) (* imprime o maior valor *)
+end.
+Saída do compilador na tela
+# 1:comentario
+# 4:program
+# 4:identifier : ex1
+# 4:ponto_virgula
+# 5:var
+# 6:identifier : num_1
+# 6:virgula
+# 6:identifier : num_2
+# 6:dois_pontos
+# 6:integer
+# 6:ponto_virgula
+# 7:identifier : maior
+# 7:dois_pontos
+# 7:integer
+# 7:ponto_virgula
+# 8:identifier : teste
+# 8:dois_pontos
+# 8:char
+# 8:ponto_virgula
+...
+...
+17 linhas analisadas, programa sintaticamente correto
+Caso seja detectado um erro léxico ou sintático o compilador deve-se emitir uma mensagem de erro explicativa e
+terminar a execução do programa. A mensagem explicativa deve informar a linha do erro, o tipo do erro (léxico ou
+sintático) e caso seja um erro sintático, deve-se informar qual era o átomo esperado e qual foi o átomo encontrado
+na análise, veja abaixo um exemplo de saída com erro do compilador
+Arquivo fonte de entrada.
+1
+2
+3
+4
+program ex2;
+begin
+write(maior ;
+end.
+Exemplo de saída do compilador na tela
+# 1:program
+# 1:identifier : ex2
+# 1:ponto_virgula
+# 2:begin
+# 3:write
+# 3:abre_par
+# 3:identifier : maior
+# 3:erro sintatico, esperado [)] encontrado [;]
 */

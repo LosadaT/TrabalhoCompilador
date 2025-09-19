@@ -12,7 +12,6 @@ begin
 		maior := num_1
 	else
 		maior := num_2;
-    num_1 := 5; (* so pra testar o char *)	
+    teste := 'f'; (* so pra testar o char *)	
     write(maior) (* imprime o maior valor *)
-end.
-   
+end. 
