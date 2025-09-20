@@ -1,5 +1,4 @@
-program errado4;
+program ex2;
 begin
-    (* comentário sem fim
-    write(1);
+write(maior ;
 end.

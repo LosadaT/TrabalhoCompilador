@@ -1,3 +1,4 @@
+//Francisco Losada Totaro - 10364673
 #include <stdio.h>
 #include <ctype.h>
 #include <string.h>
@@ -8,7 +9,7 @@
 char buffer_global[MAX_BUFFER];
 char *buffer;
 
-// tipos do analisador lexico
+// analisador lexico
 typedef enum{
     ERRO,
     IDENTIFICADOR,
@@ -142,9 +143,9 @@ int main(){
     fclose(f);
     buffer = buffer_global;
 
-    //printf("Analisando: %s",buffer);
     infoAtomo = obter_atomo();
     lookahead = infoAtomo.atomo;
+
     program();
     consome(EOS);
     printf("\nfim de programa. %d linhas analisadas, programa sintaticamente correto\n", infoAtomo.linha);
@@ -156,9 +157,11 @@ TInfoAtomo obter_atomo() {
     TInfoAtomo infoAtomo;
     infoAtomo.atomo = ERRO;
 
-    // Ignora espaços, tabs e novas linhas (mantendo contagem de linhas)
+    //ignora
     while (*buffer == ' ' || *buffer == '\t' || *buffer == '\n' || *buffer == '\r') {
-        if (*buffer == '\n') nLinha++;
+        if (*buffer == '\n') {
+            nLinha++;
+        }
         buffer++;
     }
 
@@ -183,10 +186,11 @@ TInfoAtomo obter_atomo() {
     }
     
     infoAtomo.linha = nLinha;
-
+    //numero
     if(isdigit(*buffer)){
         reconhece_numero(&infoAtomo);
     }
+    //char
     else if((isalpha(*buffer) || *buffer == '_')) {
         reconhe_id(&infoAtomo);
     }
@@ -286,7 +290,7 @@ void reconhece_numero(TInfoAtomo *infoAtomo){
     // Parte inteira
     while (isdigit(*buffer)) buffer++;
 
-    // Notação exponencial (d ou D)
+    // Notação exponencial
     if (*buffer == 'd' || *buffer == 'D') {
         tem_expo = 1;
         buffer++;
@@ -307,7 +311,7 @@ void reconhece_numero(TInfoAtomo *infoAtomo){
     }
 
     int tam = buffer - ini_lexema;
-    if (tam > 15) { // número muito longo
+    if (tam > 15) {
         infoAtomo->atomo = ERRO;
         return;
     }
@@ -328,8 +332,6 @@ void reconhece_numero(TInfoAtomo *infoAtomo){
 void reconhe_id(TInfoAtomo *infoAtomo){
     char *ini_lexema = buffer;
     int tam = 0;
-
-    // Primeiro caractere já garantido ser letra ou '_'
     buffer++;
     tam++;
 
@@ -426,18 +428,24 @@ void statement_part() {
 // <statement> ::= <assignment_statement> | <read_statement> | <write_statement> | <if_statement> | <while_statement> | <statement_part>
     //FIRST(<statement>) = { identifier, read, write, if, while, begin }
 void statement() {
-    if(lookahead == IDENTIFICADOR)
+    if(lookahead == IDENTIFICADOR) {
         assignment_statement();
-    else if(lookahead == READ)
+    }
+    else if(lookahead == READ) {
         read_statement();
-    else if(lookahead == WRITE)
+    }
+    else if(lookahead == WRITE) {
         write_statement();
-    else if(lookahead == IF) 
+    }
+    else if(lookahead == IF) {
         if_statement();
-    else if(lookahead == WHILE)
+    }
+    else if(lookahead == WHILE) {
         while_statement();
-    else if(lookahead == BEGIN)
+    }
+    else if(lookahead == BEGIN) {
         statement_part();
+    }
 }
 // <assignment_statement> ::= identifier ‘:=’ <expression>
     //FIRST(<assignment_statement>) = { identifier }
@@ -453,7 +461,7 @@ void read_statement() {
     consome(READ);
     consome(ABREPARENTESES);
     consome(IDENTIFICADOR);
-    while(lookahead == VIRGULA){
+    while(lookahead == VIRGULA) {
         consome(VIRGULA);
         consome(IDENTIFICADOR);
     }
@@ -466,7 +474,7 @@ void write_statement() {
     consome(WRITE);
     consome(ABREPARENTESES);
     consome(IDENTIFICADOR);
-    while(lookahead == VIRGULA){
+    while(lookahead == VIRGULA) {
         consome(VIRGULA);
         consome(IDENTIFICADOR);
     }
@@ -480,7 +488,7 @@ void if_statement() {
     expression();
     consome(THEN);
     statement();
-    if(lookahead == ELSE ){
+    if(lookahead == ELSE ) {
         consome(ELSE);
         statement();
     }
@@ -499,28 +507,37 @@ void while_statement() {
     //FIRST(<expression>) = { identifier, constint, constchar, (, not, true, false }
 void expression() {
     simple_expression();
-    if( lookahead == MENOR || lookahead == MENORIGUAL || lookahead == MAIOR || lookahead == MAIORIGUAL || lookahead == IGUAL || lookahead == DIFERENTE || lookahead == OR || lookahead == AND )
+    if(lookahead == MENOR || lookahead == MENORIGUAL || lookahead == MAIOR || lookahead == MAIORIGUAL || lookahead == IGUAL || lookahead == DIFERENTE || lookahead == OR || lookahead == AND) {
         relational_expression();
+    }
 }
 // <relational_operator> ::= ‘<’ | ‘<=’ | ‘>’ | ‘>=’ | ‘=’ | ‘<>’ | or | and
     //FIRST(<relational_operator>) = { <, <=, >, >=, =, <>, or, and }
 void relational_expression() {
-    if(lookahead == MENOR)
+    if(lookahead == MENOR) {
         consome(lookahead);
-    else if(lookahead == MENORIGUAL)
+    }
+    else if(lookahead == MENORIGUAL) {
         consome(lookahead);
-    else if(lookahead == MAIOR)
+    }
+    else if(lookahead == MAIOR) {
         consome(lookahead);
-    else if(lookahead == MAIORIGUAL)
+    }
+    else if(lookahead == MAIORIGUAL) {
         consome(lookahead);
-    else if(lookahead == IGUAL)
+    }
+    else if(lookahead == IGUAL) {
         consome(lookahead);
-    else if(lookahead == DIFERENTE)
+    }
+    else if(lookahead == DIFERENTE) {
         consome(lookahead);
-    else if(lookahead == OR)
+    }
+    else if(lookahead == OR) {
         consome(lookahead);
-    else if(lookahead == AND)
+    }
+    else if(lookahead == AND) {
         consome(lookahead);
+    }
     simple_expression();
 }
 
@@ -528,7 +545,7 @@ void relational_expression() {
     //FIRST(<simple_expression>) = { identifier, constint, constchar, (, not, true, false }
 void simple_expression() {
     term();
-    while(lookahead == OP_SOMA || lookahead == OP_SUB){
+    while(lookahead == OP_SOMA || lookahead == OP_SUB) {
         adding_operator();
         term();
     }
@@ -537,17 +554,19 @@ void simple_expression() {
 // <adding_operator> ::= ‘+’ | ‘-’
     //FIRST(<adding_operator>) = { +, - }
 void adding_operator() {
-    if(lookahead == OP_SOMA)
+    if(lookahead == OP_SOMA) {
         consome(OP_SOMA);
-    else if(lookahead == OP_SUB)
+    }
+    else if(lookahead == OP_SUB) {
         consome(OP_SUB);
+    }
 }
 
 // <term> ::= <factor> { <multiplying_operator> <factor> }
     //FIRST(<term>) = { identifier, constint, constchar, (, not, true, false }
 void term() {
     factor();
-    while(lookahead == OP_MULT || lookahead == OP_DIV){
+    while(lookahead == OP_MULT || lookahead == OP_DIV) {
         multiplying_operator();
         factor();
     }
@@ -565,25 +584,30 @@ void multiplying_operator() {
 // <factor> ::= identifier | constint | constchar | ‘(’ <expression> ‘)’ | not <factor> | true | false
     //FIRST(<factor>) = { identifier, constint, constchar, (, not, true, false }
 void factor() {
-    if( lookahead == IDENTIFICADOR )
+    if(lookahead == IDENTIFICADOR) {
         consome(IDENTIFICADOR);
-    else if(lookahead == CONSTINT)
+    }
+    else if(lookahead == CONSTINT) {
         consome(CONSTINT);
-    else if(lookahead == CONSTCHAR)
+    }
+    else if(lookahead == CONSTCHAR) {
         consome(CONSTCHAR);
-    else if(lookahead == ABREPARENTESES){
+    }
+    else if(lookahead == ABREPARENTESES) {
         consome(ABREPARENTESES);
         expression();
         consome(FECHAPARENTESES);
     }
-    else if(lookahead == NOT){
+    else if(lookahead == NOT) {
         consome(NOT);
         factor();
     }
-    else if(lookahead == TRUE)
+    else if(lookahead == TRUE) {
         consome(TRUE);
-    else if(lookahead == FALSE)
+    }
+    else if(lookahead == FALSE) {
         consome(FALSE);
+    }
 }
 
 void consome(TAtomo atomo) {
