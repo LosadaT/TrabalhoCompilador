@@ -97,8 +97,14 @@ char lexema[20];
 int nLinha;
 TAtomo lookahead;
 TInfoAtomo infoAtomo;
-char *strMensagem[] = {"erro lexico", "IDENTIFICADOR", "NUMERO", "+", "*", "-", "/", "EOS", "PROGRAM", "VAR", "CHAR", "INTEGER", "BOOLEAN", "READ", "WRITE", "IF", "THEN", "ELSE", "WHILE", "DO", "BEGIN", "END", ":=", "OR", "AND", "NOT", "TRUE", "FALSE", "<", "<=", ">", ">=", "=", "<>", "CONSTCHAR"};
-
+char *strMensagem[] = {
+    "erro lexico", "IDENTIFICADOR", "NUMERO", "+", "*", "-", "/", "EOS",
+    "PROGRAM", "VAR", "CHAR", "INTEGER", "BOOLEAN", "READ", "WRITE",
+    "IF", "THEN", "ELSE", "WHILE", "DO", "BEGIN", "END", ":=", "OR",
+    "AND", "NOT", "TRUE", "FALSE", "<", "<=", ">", ">=", "=", "<>",
+    "CONSTCHAR", "COMENTARIO", "PONTOVIRGULA", "VIRGULA", "DOISPONTOS",
+    "ABREPARENTESES", "FECHAPARENTESES", "PONTO, COMENTARIO"
+};
 TInfoAtomo obter_atomo();
 void reconhece_numero(TInfoAtomo *infoAtomo);
 void reconhe_id(TInfoAtomo *infoAtomo);
@@ -136,7 +142,7 @@ int main(){
     fclose(f);
     buffer = buffer_global;
 
-    printf("Analisando: %s",buffer);
+    //printf("Analisando: %s",buffer);
     infoAtomo = obter_atomo();
     lookahead = infoAtomo.atomo;
     program();
@@ -156,19 +162,26 @@ TInfoAtomo obter_atomo() {
         buffer++;
     }
 
-    // Ignora comentários
-    while (*buffer == '(' && *(buffer+1) == '*') {
+    //comentario
+    if (*buffer == '(' && *(buffer+1) == '*') {
+        int linha_inicio = nLinha;
         buffer += 2;
         while (!(*buffer == '*' && *(buffer+1) == ')') && *buffer != '\0') {
             if (*buffer == '\n') nLinha++;
             buffer++;
         }
-        if (*buffer == '*' && *(buffer+1) == ')') buffer += 2;
-        while (*buffer == ' ' || *buffer == '\t' || *buffer == '\n' || *buffer == '\r') {
-            if (*buffer == '\n') nLinha++;
-            buffer++;
+        //comentario nao fechado
+        if (*buffer == '\0') {
+            infoAtomo.linha = linha_inicio;
+            infoAtomo.atomo = ERRO;
+            return infoAtomo;
         }
+        buffer += 2; 
+        infoAtomo.linha = linha_inicio;
+        infoAtomo.atomo = COMENTARIO;
+        return infoAtomo;
     }
+    
     infoAtomo.linha = nLinha;
 
     if(isdigit(*buffer)){
@@ -331,7 +344,7 @@ void reconhe_id(TInfoAtomo *infoAtomo){
     strncpy(infoAtomo->atributo.ID, ini_lexema, buffer-ini_lexema);
     infoAtomo->atributo.ID[buffer-ini_lexema] = '\0';
 
-    // Verifica se é palavra reservada (case sensitive)
+    // Verifica se é palavra reservada
     for (int i = 0; reservadas[i].palavra != NULL; i++) {
         if (strcmp(infoAtomo->atributo.ID, reservadas[i].palavra) == 0) {
             infoAtomo->atomo = reservadas[i].atomo;
@@ -574,13 +587,19 @@ void factor() {
 }
 
 void consome(TAtomo atomo) {
+    while (lookahead == COMENTARIO) {
+        printf("\n#%2d:comentario", infoAtomo.linha);
+        infoAtomo = obter_atomo();
+        lookahead = infoAtomo.atomo;
+    }
+    
     if (lookahead == atomo) {
         switch (lookahead) {
             case IDENTIFICADOR:
                 printf("\n#%2d:identifier : %s", infoAtomo.linha, infoAtomo.atributo.ID);
                 break;
             case CONSTINT:
-                printf("\n#%2d:NUMERO : %g", infoAtomo.linha, infoAtomo.atributo.numero);
+                printf("\n#%2d:CONSTINT : %g", infoAtomo.linha, infoAtomo.atributo.numero);
                 break;
             case CONSTCHAR:
                 printf("\n#%2d:CONSTCHAR : '%c'", infoAtomo.linha, infoAtomo.atributo.ch);
@@ -644,172 +663,70 @@ void consome(TAtomo atomo) {
                 break;
             case ASSIGN:
                 printf("\n#%2d:atribuição", infoAtomo.linha);
-            
-            // case COMENTARIO:
-            //     printf("\n#%2d:comentario", infoAtomo.linha);
-            //     break;
+                break;
+            case COMENTARIO:
+                printf("\n#%2d:comentario", infoAtomo.linha);
+                break;
+            case THEN:
+                printf("\n#%2d:then", infoAtomo.linha);
+                break;
+            case BOOLEAN:
+                printf("\n#%2d:boolean", infoAtomo.linha);
+                break;
+            case IF:
+                printf("\n#%2d:if", infoAtomo.linha);
+                break;
+            case ELSE:
+                printf("\n#%2d:else", infoAtomo.linha);
+                break;
+            case WHILE:
+                printf("\n#%2d:while", infoAtomo.linha);
+                break;
+            case DO:
+                printf("\n#%2d:do", infoAtomo.linha);
+                break;
+            case OR:
+                printf("\n#%2d:or", infoAtomo.linha);
+                break;
+            case AND:
+                printf("\n#%2d:and", infoAtomo.linha);
+                break;
+            case NOT:
+                printf("\n#%2d:not", infoAtomo.linha);
+                break;
+            case TRUE:
+                printf("\n#%2d:true", infoAtomo.linha);
+                break;
+            case FALSE:
+                printf("\n#%2d:false", infoAtomo.linha);
+                break;
+            case OP_DIV:
+                printf("\n#%2d:div", infoAtomo.linha);
+                break;
+            case OP_MULT:
+                printf("\n#%2d:mult", infoAtomo.linha);
+                break;
+            case OP_SOMA:
+                printf("\n#%2d:soma", infoAtomo.linha);
+                break;
+            case OP_SUB:
+                printf("\n#%2d:sub", infoAtomo.linha);
+                break;
             default:
-                // printf("\n#%2d:%s", infoAtomo.linha, strMensagem[lookahead]);
-                printf("");
+                printf("\n#%2d:%s", infoAtomo.linha, strMensagem[lookahead]);
+                //printf("");
         }
         infoAtomo = obter_atomo();
         lookahead = infoAtomo.atomo;
+
+        while (lookahead == COMENTARIO) {
+            printf("\n#%2d:comentario", infoAtomo.linha);
+            infoAtomo = obter_atomo();
+            lookahead = infoAtomo.atomo;
+        }
     }
     else {
-        printf("\n#%2d:erro sintatico, esperado [%s] encontrado [%s]\n",
-            infoAtomo.linha, strMensagem[atomo], strMensagem[lookahead]);
+        printf("\n#%2d:erro sintatico, esperado [%s] encontrado [%s]\n", infoAtomo.linha, strMensagem[atomo], strMensagem[lookahead]);
         exit(1);
     }
 }
-
-/*
-A sintaxe da linguagem PasKenzie é descrita por uma gramática na notação EBNF, vale ressaltar que a notação
-EBNF utiliza os símbolos especiais |, {, }, [, ] (, ) na sua metalinguagem1
-. Os <não-terminais> da gramática
-são nomes entre parênteses angulares < e > e os símbolos terminais (átomos do analisador léxico) estão em
-negrito ou entre apóstrofos (Ex: ‘;’), observe que os símbolos especiais da notação EBNF estão em vermelho
-(ex: {, }) e os terminais em apóstrofo (ex: ‘{’ e ‘}’). A construção { alfa } denotará a repetição da cadeia alfa zero,
-uma ou mais vezes (alfa*) e [ β ] é equivalente a β|λ, ou seja, indica que a cadeia β é opcional. Considere que o
-símbolo inicial da gramática é <program>:
-*/
-/*
-Especificações Léxicas
-Caracteres Delimitadores: Os caracteres delimitadores: espaços em branco, quebra de linhas, tabulação e
-retorno de carro (‘ ’,
-‘\n’
-,
-‘\t’
-,
-‘\r’) deverão ser eliminados (ignorados) pelo analisador léxico, mas o
-controle de linha (contagem de linha) deverá ser mantido.
-*/
-/*
-Comentários: Na linguagem PasKenzie só existe comentários de várias linhas que começam com ‘(*’ e
-termina com ‘*)’, lembrando que a contagem de linha deve ser mantida dentro do comentário.
-Importante: Os comentários devem ser repassados para o analisador sintático para serem processados e
-descartados.
-*/
-/*
-identifier: Os identificadores começam com uma letra (maiúscula ou minúscula) ou underline ‘_’, em
-seguida pode vir zero ou mais letras (maiúscula ou minúscula) ou underline ‘_’ ou dígitos, limitados a 15
-caracteres. Caso seja encontrado um identificador com mais de 15 caracteres deve ser retornado ERRO pelo
-analisador léxico. A seguir a definição regular para o átomo identifier.
-letra → a|b|...|z|A|B|...|Z|_
-digito → 0|1|...|9
-identifier → letra(letra|digito)*
-Importante: Na saída do compilador, para átomo identifier, deverá ser impresso o lexema que gerou
-o átomo, ou seja, a sequência de caracteres reconhecida. Para isso o lexema deverá ser armazenado na
-estrutura TInfoAatomo no campo atributo.id.
-*/
-/*
-Palavras reservadas: As palavras reservadas da linguagem PasKenzie são:
-div | or | and | not | if | then | else | while | do | begin | end | read |
-write | var | program | true | false | char | integer | boolean.
-Importante: As palavras reservadas são formadas por caracteres e minúsculo, além disso o compilador é
-sensível ao caso, ou seja, Program e program são átomos diferentes, o primeiro é um identificador e o
-segundo é uma palavra reservada.
-*/
-/*
-constchar: para constante caractere são aceitos qualquer caractere da tabela ASCII entre apóstrofo, por
-exemplo: ‘a’ou ‘0’.
-Importante: O caractere que gerou o átomo constchar deve ser armazenado na estrutura TInfoAatomo
-no campo atributo.ch pelo analisador léxico e depois impresso na tela na saída do compilador.
-*/
-/*
-constint: Para constante inteira o compilador reconhece somente números inteiros na notação decimal,
-com possiblidade de escrever o número na notação exponencial (potências de 10), conforme expressão
-regular abaixo:
-constint → digito+((d(+|ε)digito+)|ε)
-Exemplos de constantes inteiras: 1, 000, 124, 12d2 (=1200), 12d+2 (=1200)
-Importante: O analisador léxico deve retornar o valor número que gerou o átomo constint utilizando a
-estrutura TInfoAatomo preenchendo o campo atributo.numero, que depois será impresso na saída do
-compilador.
-*/
-/*
-Execução do Compilador
-O compilador deve ler o arquivo fonte, com o nome informado por linha de comando, e informar, na tela do
-computador, a linha e a descrição de todos os átomos reconhecidos no arquivo fonte, o número de linhas
-analisadas caso o programa esteja sintaticamente correto.
-Abaixo temos um exemplo de arquivo fonte em PasKenzie, sem erros léxicos ou sintáticos, e sua respectiva saída
-na tela:
-Arquivo fonte de entrada.
-1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
-13
-14
-15
-16
-17
-(*
-*)
-program ex1;
-var
-programa le dois numeros inteiros e encontra o maior
-num_1, num_2:integer;
-maior:integer;
-teste:char;
-begin
-read(num_1,num_2);
-if num_1 > num_2 then
-maior := num_1
-else
-maior := num_2;
-teste := ‘f’; (* so pra testar o char *)
-write(maior) (* imprime o maior valor *)
-end.
-Saída do compilador na tela
-# 1:comentario
-# 4:program
-# 4:identifier : ex1
-# 4:ponto_virgula
-# 5:var
-# 6:identifier : num_1
-# 6:virgula
-# 6:identifier : num_2
-# 6:dois_pontos
-# 6:integer
-# 6:ponto_virgula
-# 7:identifier : maior
-# 7:dois_pontos
-# 7:integer
-# 7:ponto_virgula
-# 8:identifier : teste
-# 8:dois_pontos
-# 8:char
-# 8:ponto_virgula
-...
-...
-17 linhas analisadas, programa sintaticamente correto
-Caso seja detectado um erro léxico ou sintático o compilador deve-se emitir uma mensagem de erro explicativa e
-terminar a execução do programa. A mensagem explicativa deve informar a linha do erro, o tipo do erro (léxico ou
-sintático) e caso seja um erro sintático, deve-se informar qual era o átomo esperado e qual foi o átomo encontrado
-na análise, veja abaixo um exemplo de saída com erro do compilador
-Arquivo fonte de entrada.
-1
-2
-3
-4
-program ex2;
-begin
-write(maior ;
-end.
-Exemplo de saída do compilador na tela
-# 1:program
-# 1:identifier : ex2
-# 1:ponto_virgula
-# 2:begin
-# 3:write
-# 3:abre_par
-# 3:identifier : maior
-# 3:erro sintatico, esperado [)] encontrado [;]
-*/
