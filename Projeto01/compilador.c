@@ -1,4 +1,5 @@
 //Francisco Losada Totaro - 10364673
+//compilar: gcc -Wall -Wno-unused-result -g -Og compilador.c -o compilador
 #include <stdio.h>
 #include <ctype.h>
 #include <string.h>
@@ -10,7 +11,7 @@ char buffer_global[MAX_BUFFER];
 char *buffer;
 
 // analisador lexico
-typedef enum{
+typedef enum {
     ERRO,
     IDENTIFICADOR,
     CONSTINT,
@@ -53,9 +54,9 @@ typedef enum{
     ABREPARENTESES,
     FECHAPARENTESES,
     PONTO
-}TAtomo;
+} TAtomo;
 
-typedef struct{
+typedef struct {
     TAtomo atomo;
     int linha;
     union{
@@ -63,7 +64,7 @@ typedef struct{
         char ID[16];
         char ch;
     }atributo;
-}TInfoAtomo;
+} TInfoAtomo;
 
 typedef struct {
     const char *palavra;
@@ -107,6 +108,7 @@ char *strMensagem[] = {
     "CONSTCHAR", "COMENTARIO", "PONTOVIRGULA", "VIRGULA", "DOISPONTOS",
     "ABREPARENTESES", "FECHAPARENTESES", "PONTO, COMENTARIO"
 };
+
 TInfoAtomo obter_atomo();
 void reconhece_numero(TInfoAtomo *infoAtomo);
 void reconhece_id(TInfoAtomo *infoAtomo);
@@ -134,6 +136,7 @@ void factor();
 
 int main(){
     nLinha = 1;
+    //ler arquivo codigo.txt
     FILE *f = fopen("codigo.txt", "r");
     if (!f) {
         printf("Erro ao abrir codigo.txt\n");
@@ -147,6 +150,7 @@ int main(){
     infoAtomo = obter_atomo();
     lookahead = infoAtomo.atomo;
 
+    //Simbolo inicial
     program();
     consome(EOS);
     printf("\nfim de programa. %d linhas analisadas, programa sintaticamente correto\n", infoAtomo.linha);
@@ -286,6 +290,7 @@ TInfoAtomo obter_atomo() {
     return infoAtomo;
 }
 
+//reconhece numero
 void reconhece_numero(TInfoAtomo *infoAtomo) {
     char *ini_lexema = buffer;
     int expo = 0, sinal = 1;
@@ -316,6 +321,7 @@ void reconhece_numero(TInfoAtomo *infoAtomo) {
         }
     }
 
+    //limita tamanho
     int tam = buffer - ini_lexema;
     if (tam > 15) {
         infoAtomo->atomo = ERRO;
@@ -324,6 +330,7 @@ void reconhece_numero(TInfoAtomo *infoAtomo) {
     strncpy(lexema, ini_lexema, tam);
     lexema[tam] = '\0';
 
+    //calcula a potencia
     float valor = atof(lexema);
     if (tem_expo) {
         if (sinal == 1)
@@ -362,6 +369,7 @@ void reconhece_id(TInfoAtomo *infoAtomo){
     }
     infoAtomo->atomo = IDENTIFICADOR;
 }
+
 //Analisador Sintático
 // ASDR
 // <program> ::= program identifier ‘;‘ <block> ‘.'
@@ -503,7 +511,7 @@ void if_statement() {
 
 // <while_statement> ::= while <expression> do <statement>
     //FIRST(<while_statement>) = {while}
-void while_statement() {
+void while_statement() {    
     consome(WHILE);
     expression();
     consome(DO);
@@ -695,9 +703,6 @@ void consome(TAtomo atomo) {
                 break;
             case ASSIGN:
                 printf("\n#%2d:atribuição", infoAtomo.linha);
-                break;
-            case COMENTARIO:
-                printf("\n#%2d:comentario", infoAtomo.linha);
                 break;
             case THEN:
                 printf("\n#%2d:then", infoAtomo.linha);
