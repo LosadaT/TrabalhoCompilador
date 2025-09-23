@@ -12,6 +12,7 @@ Já no ASDR, foi criado uma função para cada regra da gramática, onde analisa
 Por último, na função consome(), foi feito, no inicio e no final, dois whiles iguais, que consomem o comentário e apresenta a linha no terminal. Temos dois while iguais porque, o primeiro reconhece comentarios no começo do codigo, e o outro depois de alguma linha valida. Depois entra em um switch case em que, se o lookahead for igual ao átomo, entra no caso especifico, dando o print no terminal.
 
 Para compilar o arquivo, utilize: gcc -Wall -Wno-unused-result -g -Og compilador.c -o compilador 
+
 Para alterar o arquivo de entrada, mude a string na linha 138, -> FILE *f = fopen("seuarquivo.txt", "r");
 
 No arquivo de teste, quando copiado diretamente do PDF, ocorre um erro, porque as aspas simples utilizadas no pdf (‘ ’) são diferentes da do compilador (' '). É recomendado alterar ela no arquivo teste para funcionamento correto do compilador.
