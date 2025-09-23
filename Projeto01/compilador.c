@@ -154,7 +154,6 @@ int main(){
     program();
     consome(EOS);
     printf("\nfim de programa. %d linhas analisadas, programa sintaticamente correto\n", infoAtomo.linha);
-
     return 0;
 }
 
