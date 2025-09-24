@@ -292,44 +292,74 @@ TInfoAtomo obter_atomo() {
 //reconhece numero
 void reconhece_numero(TInfoAtomo *infoAtomo) {
     char *ini_lexema = buffer;
-    int expo = 0, sinal = 1;
+    int expo = 0;
+    int sinal = 1;
     int tem_expo = 0;
+    int tam;
 
-    // Parte inteira
-    while (isdigit(*buffer)) {
+q0:
+    if (isdigit(*buffer)) {
         buffer++;
+        goto q0;
     }
-
-    // Notação exponencial
+    if (*buffer == '.') {
+        buffer++;
+        goto q1;
+    }
     if (*buffer == 'd' || *buffer == 'D') {
         tem_expo = 1;
         buffer++;
-        if (*buffer == '+') {
-            buffer++;
-        } else if (*buffer == '-') {
-            sinal = -1;
-            buffer++;
-        }
-        if (!isdigit(*buffer)) {
-            infoAtomo->atomo = ERRO;
-            return;
-        }
-        while (isdigit(*buffer)) {
-            expo = expo * 10 + (*buffer - '0');
-            buffer++;
-        }
+        goto q2;
     }
+    goto q4;
 
+q1:
+    if (isdigit(*buffer)) {
+        buffer++;
+        goto q1;
+    }
+    if (*buffer == 'd' || *buffer == 'D') {
+        tem_expo = 1;
+        buffer++;
+        goto q2;
+    }
+    goto q4;
+
+q2:
+    if (*buffer == '+') {
+        buffer++;
+        goto q3;
+    }
+    if (*buffer == '-') {
+        sinal = -1;
+        buffer++;
+        goto q3;
+    }
+    if (isdigit(*buffer)) {
+        goto q3;
+    }
+    infoAtomo->atomo = ERRO;
+    return;
+
+q3:
+    if (isdigit(*buffer)) {
+        expo = expo * 10 + (*buffer - '0');
+        buffer++;
+        goto q3;
+    }
+    goto q4;
+
+q4:
     //limita tamanho
-    int tam = buffer - ini_lexema;
-    if (tam > 15) {
+    tam = buffer - ini_lexema;
+    if (tam > 15) { 
         infoAtomo->atomo = ERRO;
         return;
     }
     strncpy(lexema, ini_lexema, tam);
     lexema[tam] = '\0';
 
-    //calcula a potencia
+    // expoente
     float valor = atof(lexema);
     if (tem_expo) {
         if (sinal == 1)
@@ -339,34 +369,40 @@ void reconhece_numero(TInfoAtomo *infoAtomo) {
     }
     infoAtomo->atributo.numero = valor;
     infoAtomo->atomo = CONSTINT;
+    return;
 }
 
-void reconhece_id(TInfoAtomo *infoAtomo){
+// void reconhece_id(TInfoAtomo *infoAtomo){
+void reconhece_id(TInfoAtomo *infoAtomo) {
     char *ini_lexema = buffer;
     int tam = 0;
-    buffer++;
-    tam++;
-    
-    //verifica tamanho do identificador
-    while(isalnum(*buffer) || *buffer == '_'){ // (isalnum reconhece se é um caractere alfanumerico)
+
+q0: 
+    if (isalnum(*buffer) || *buffer == '_') {
         buffer++;
         tam++;
         if (tam > 15) {
             infoAtomo->atomo = ERRO;
             return;
         }
+        goto q0;
     }
-    strncpy(infoAtomo->atributo.ID, ini_lexema, buffer-ini_lexema);
-    infoAtomo->atributo.ID[buffer-ini_lexema] = '\0';
+    goto q1;
 
-    // Verifica se é palavra reservada
+q1:
+    strncpy(infoAtomo->atributo.ID, ini_lexema, buffer - ini_lexema);
+    infoAtomo->atributo.ID[buffer - ini_lexema] = '\0';
+
+    // Verifica se é palavra reservada
     for (int i = 0; reservadas[i].palavra != NULL; i++) {
         if (strcmp(infoAtomo->atributo.ID, reservadas[i].palavra) == 0) {
             infoAtomo->atomo = reservadas[i].atomo;
             return;
         }
     }
+
     infoAtomo->atomo = IDENTIFICADOR;
+    return;
 }
 
 //Analisador Sintático
@@ -638,10 +674,10 @@ void consome(TAtomo atomo) {
                 printf("\n#%2d:identifier : %s", infoAtomo.linha, infoAtomo.atributo.ID);
                 break;
             case CONSTINT:
-                printf("\n#%2d:CONSTINT : %g", infoAtomo.linha, infoAtomo.atributo.numero);
+                printf("\n#%2d:constint : %g", infoAtomo.linha, infoAtomo.atributo.numero);
                 break;
             case CONSTCHAR:
-                printf("\n#%2d:CONSTCHAR : '%c'", infoAtomo.linha, infoAtomo.atributo.ch);
+                printf("\n#%2d:constchar : '%c'", infoAtomo.linha, infoAtomo.atributo.ch);
                 break;
             case PONTOVIRGULA:
                 printf("\n#%2d:ponto_virgula", infoAtomo.linha);
