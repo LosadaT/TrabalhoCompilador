@@ -6,9 +6,25 @@
 #include <stdlib.h>
 #include <math.h>
 #define MAX_BUFFER 10000
+#define PRIME_NUMBER 211
 
 char buffer_global[MAX_BUFFER];
 char *buffer;
+
+// Tabela de Símbolos
+typedef struct _TNo {
+    char ID[16];
+    int endereco;
+    struct _TNo *prox;
+} TNo;
+
+typedef struct {
+    TNo *entradas[PRIME_NUMBER];
+} TTabelaSimbolos;
+
+TTabelaSimbolos tabelaSimbolos;
+int contadorEndereco = 0;
+int contadorRotulo = 1;
 
 // analisador lexico
 typedef enum {
@@ -113,6 +129,14 @@ TInfoAtomo obter_atomo();
 void reconhece_numero(TInfoAtomo *infoAtomo);
 void reconhece_id(TInfoAtomo *infoAtomo);
 void consome(TAtomo atomo);
+int hashMack(char * s);
+
+// Funções da Tabela de Simblos
+void inicializa_tabela_simbolos();
+void insere_tabela_simbolos(char *id);
+int busca_tabela_simbolos(char *id);
+void imprime_tabela_simbolos();
+int proximo_rotulo();
 
 void program();
 void block();
@@ -136,6 +160,8 @@ void factor();
 
 int main(){
     nLinha = 1;
+    inicializa_tabela_simbolos();
+    
     //ler arquivo codigo.txt
     FILE *f = fopen("codigo.txt", "r");
     if (!f) {
@@ -153,7 +179,8 @@ int main(){
     //Simbolo inicial
     program();
     consome(EOS);
-    printf("\nfim de programa. %d linhas analisadas, programa sintaticamente correto\n", infoAtomo.linha);
+    
+    imprime_tabela_simbolos();
     return 0;
 }
 
@@ -372,7 +399,7 @@ q4:
     return;
 }
 
-// void reconhece_id(TInfoAtomo *infoAtomo){
+// void reconhece id
 void reconhece_id(TInfoAtomo *infoAtomo) {
     char *ini_lexema = buffer;
     int tam = 0;
@@ -413,21 +440,28 @@ void program() {
     consome(PROGRAM);
     consome(IDENTIFICADOR);
     consome(PONTOVIRGULA);
+    printf("	INPP\n");
     block();
+    printf("	PARA\n");
     consome(PONTO);
 }
 
 // <block> ::= <variable_declaration_part> <statement_part>
     //FIRST(<block>) = { var, begin }
 void block() {
+    int numVars = contadorEndereco;
     variable_declaration_part();
+    numVars = contadorEndereco - numVars;
+    if (numVars > 0) {
+        printf("	AMEM %d\n", numVars);
+    }
     statement_part();
 }
 
 // <variable_declaration_part> ::= [ var <variable_declaration> ‘;’ { <variable_declaration> ‘;’ } ]
     // FIRST(<variable_declaration_part>) = { var, λ }
 void variable_declaration_part() {
-    if( lookahead == VAR ){
+    if(lookahead == VAR){
         consome(VAR);
         variable_declaration();
         consome(PONTOVIRGULA);
@@ -440,10 +474,16 @@ void variable_declaration_part() {
 // <variable_declaration> ::= identifier { ‘,’ identifier } ‘:’ <type>
     //FIRST(<variable_declaration>) = { identifier }
 void variable_declaration() {
+    char id[16];
+    strcpy(id, infoAtomo.atributo.ID);
     consome(IDENTIFICADOR);
+    insere_tabela_simbolos(id);
+    
     while(lookahead == VIRGULA){
         consome(VIRGULA);
+        strcpy(id, infoAtomo.atributo.ID);
         consome(IDENTIFICADOR);
+        insere_tabela_simbolos(id);
     }
     consome(DOISPONTOS);
     type();
@@ -496,24 +536,36 @@ void statement() {
     else if(lookahead == BEGIN) {
         statement_part();
     }
+    else {
+        consome(IDENTIFICADOR);
+    }
 }
 // <assignment_statement> ::= identifier ‘:=’ <expression>
     //FIRST(<assignment_statement>) = { identifier }
 void assignment_statement() {
+    int endereco = busca_tabela_simbolos(infoAtomo.atributo.ID);
     consome(IDENTIFICADOR);
     consome(ASSIGN);
     expression();
+    printf("\tARMZ %d\n", endereco);
 }
 
 // <read_statement> ::= read ‘(’ identifier { ‘,’ identifier } ‘)’
     //FIRST(<read_statement>) = { read }
 void read_statement() {
+    int endereco;
     consome(READ);
     consome(ABREPARENTESES);
+    endereco = busca_tabela_simbolos(infoAtomo.atributo.ID);
     consome(IDENTIFICADOR);
+    printf("\tLEIT\n");
+    printf("\tARMZ %d\n", endereco);
     while(lookahead == VIRGULA) {
         consome(VIRGULA);
+        endereco = busca_tabela_simbolos(infoAtomo.atributo.ID);
         consome(IDENTIFICADOR);
+        printf("\tLEIT\n");
+        printf("\tARMZ %d\n", endereco);
     }
     consome(FECHAPARENTESES);
 }
@@ -521,12 +573,19 @@ void read_statement() {
 // <write_statement> ::= write ‘(’ identifier { ‘,’ identifier } ‘)’
     //FIRST(<write_statement>) = { write }
 void write_statement() {
+    int endereco;
     consome(WRITE);
     consome(ABREPARENTESES);
+    endereco = busca_tabela_simbolos(infoAtomo.atributo.ID);
     consome(IDENTIFICADOR);
+    printf("\tCRVL %d\n", endereco);
+    printf("\tIMPR\n");
     while(lookahead == VIRGULA) {
         consome(VIRGULA);
+        endereco = busca_tabela_simbolos(infoAtomo.atributo.ID);
         consome(IDENTIFICADOR);
+        printf("\tCRVL %d\n", endereco);
+        printf("\tIMPR\n");
     }
     consome(FECHAPARENTESES);
 }
@@ -534,23 +593,35 @@ void write_statement() {
 // <if_statement> ::= if <expression> then <statement> [ else <statement> ]
     //FIRST(<if_statement>) = { if }
 void if_statement() {
+    int L1 = proximo_rotulo();
+    int L2 = proximo_rotulo();
     consome(IF);
     expression();
     consome(THEN);
+    printf("\tDSVF L%d\n", L1);
     statement();
+    printf("\tDSVS L%d\n", L2);
+    printf("L%d:\tNADA\n", L1);
     if(lookahead == ELSE ) {
         consome(ELSE);
         statement();
     }
+    printf("L%d:\tNADA\n", L2);
 }
 
 // <while_statement> ::= while <expression> do <statement>
     //FIRST(<while_statement>) = {while}
-void while_statement() {    
+void while_statement() {
+    int L1 = proximo_rotulo();
+    int L2 = proximo_rotulo();
+    printf("L%d:\tNADA\n", L1);
     consome(WHILE);
     expression();
     consome(DO);
+    printf("\tDSVF L%d\n", L2);
     statement();
+    printf("\tDSVS L%d\n", L1);
+    printf("L%d:\tNADA\n", L2);
 }
 
 // <expression> ::= <simple_expression> [ <relational_operator> <simple expression> ]
@@ -566,29 +637,44 @@ void expression() {
 void relational_expression() {
     if(lookahead == MENOR) {
         consome(MENOR);
+        simple_expression();
+        printf("\tCMME\n");
     }
     else if(lookahead == MENORIGUAL) {
         consome(MENORIGUAL);
+        simple_expression();
+        printf("\tCMEG\n");
     }
     else if(lookahead == MAIOR) {
         consome(MAIOR);
+        simple_expression();
+        printf("\tCMMA\n");
     }
     else if(lookahead == MAIORIGUAL) {
         consome(MAIORIGUAL);
+        simple_expression();
+        printf("\tCMAG\n");
     }
     else if(lookahead == IGUAL) {
         consome(IGUAL);
+        simple_expression();
+        printf("\tCMIG\n");
     }
     else if(lookahead == DIFERENTE) {
         consome(DIFERENTE);
+        simple_expression();
+        printf("\tCMDG\n");
     }
     else if(lookahead == OR) {
         consome(OR);
+        simple_expression();
+        printf("\tDISJ\n");
     }
     else if(lookahead == AND) {
         consome(AND);
+        simple_expression();
+        printf("\tCONJ\n");
     }
-    simple_expression();
 }
 
 // <simple_expression> ::= <term> { <adding_operator> <term> }
@@ -596,14 +682,22 @@ void relational_expression() {
 void simple_expression() {
     term();
     while(lookahead == OP_SOMA || lookahead == OP_SUB) {
+        TAtomo op = lookahead;
         adding_operator();
         term();
+        if(op == OP_SOMA) {
+            printf("\tSOMA\n");
+        }
+        else if(op == OP_SUB) {
+            printf("\tSUBT\n");
+        }
     }
 }
 
 // <adding_operator> ::= ‘+’ | ‘-’
     //FIRST(<adding_operator>) = {+, -}
 void adding_operator() {
+    //TAtomo op = lookahead;
     if(lookahead == OP_SOMA) {
         consome(OP_SOMA);
     }
@@ -617,181 +711,79 @@ void adding_operator() {
 void term() {
     factor();
     while(lookahead == OP_MULT || lookahead == OP_DIV) {
+        TAtomo op = lookahead;
         multiplying_operator();
         factor();
+        if(op == OP_MULT) {
+            printf("\tMULT\n");
+        }
+        else if(op == OP_DIV) {
+            printf("\tDIVI\n");
+        } 
     }
 }
 
 // <multiplying_operator> ::= ‘*’ | ‘div’
     //FIRST(<multiplying_operator>) = {*, div}
 void multiplying_operator() {
-    if(lookahead == OP_MULT)
+    if(lookahead == OP_MULT) {
         consome(OP_MULT);
-    else if(lookahead == OP_DIV)
+    }
+    else if(lookahead == OP_DIV) {
         consome(OP_DIV);
+    }
 }
 
 // <factor> ::= identifier | constint | constchar | ‘(’ <expression> ‘)’ | not <factor> | true | false
     //FIRST(<factor>) = {identifier, constint, constchar, (, not, true, false}
 void factor() {
     if(lookahead == IDENTIFICADOR) {
+        int endereco = busca_tabela_simbolos(infoAtomo.atributo.ID);
+        printf("\tCRVL %d\n", endereco);
         consome(IDENTIFICADOR);
     }
     else if(lookahead == CONSTINT) {
+        int valor = (int)infoAtomo.atributo.numero;
+        printf("\tCRCT %d\n", valor);
         consome(CONSTINT);
     }
-    else if(lookahead == CONSTCHAR) {
-        consome(CONSTCHAR);
-    }
-    else if(lookahead == ABREPARENTESES) {
+    else {
         consome(ABREPARENTESES);
         expression();
         consome(FECHAPARENTESES);
     }
-    else if(lookahead == NOT) {
-        consome(NOT);
-        factor();
-    }
-    else if(lookahead == TRUE) {
-        consome(TRUE);
-    }
-    else if(lookahead == FALSE) {
-        consome(FALSE);
-    }
+    // else if(lookahead == CONSTCHAR) {
+    //     consome(CONSTCHAR);
+    // }
+    // else if(lookahead == ABREPARENTESES) {
+    //     consome(ABREPARENTESES);
+    //     expression();
+    //     consome(FECHAPARENTESES);
+    // }
+    // else if(lookahead == NOT) {
+    //     consome(NOT);
+    //     factor();
+    // }
+    // else if(lookahead == TRUE) {
+    //     consome(TRUE);
+    // }
+    // else if(lookahead == FALSE) {
+    //     consome(FALSE);
+    // }
 }
 
 //consome
 void consome(TAtomo atomo) {
     while (lookahead == COMENTARIO) {
-        printf("\n#%2d:comentario", infoAtomo.linha);
         infoAtomo = obter_atomo();
         lookahead = infoAtomo.atomo;
     }
     
     if (lookahead == atomo) {
-        switch (lookahead) {
-            case IDENTIFICADOR:
-                printf("\n#%2d:identifier : %s", infoAtomo.linha, infoAtomo.atributo.ID);
-                break;
-            case CONSTINT:
-                printf("\n#%2d:constint : %g", infoAtomo.linha, infoAtomo.atributo.numero);
-                break;
-            case CONSTCHAR:
-                printf("\n#%2d:constchar : '%c'", infoAtomo.linha, infoAtomo.atributo.ch);
-                break;
-            case PONTOVIRGULA:
-                printf("\n#%2d:ponto_virgula", infoAtomo.linha);
-                break;
-            case VIRGULA:
-                printf("\n#%2d:virgula", infoAtomo.linha);
-                break;
-            case DOISPONTOS:
-                printf("\n#%2d:dois_pontos", infoAtomo.linha);
-                break;
-            case ABREPARENTESES:
-                printf("\n#%2d:abre_par", infoAtomo.linha);
-                break;
-            case FECHAPARENTESES:
-                printf("\n#%2d:fecha_par", infoAtomo.linha);
-                break;
-            case PONTO:
-                printf("\n#%2d:ponto_final", infoAtomo.linha);
-                break;
-            case PROGRAM:
-                printf("\n#%2d:program", infoAtomo.linha);
-                break;
-            case VAR:
-                printf("\n#%2d:var", infoAtomo.linha);
-                break;
-            case INTEGER:
-                printf("\n#%2d:integer", infoAtomo.linha);
-                break;
-            case CHAR:
-                printf("\n#%2d:char", infoAtomo.linha);
-                break;
-            case BEGIN:
-                printf("\n#%2d:begin", infoAtomo.linha);
-                break;
-            case END:
-                printf("\n#%2d:end", infoAtomo.linha);
-                break;
-            case READ:
-                printf("\n#%2d:read", infoAtomo.linha);
-                break;
-            case WRITE:
-                printf("\n#%2d:write", infoAtomo.linha);
-                break;
-            case MENOR:
-                printf("\n#%2d:menor", infoAtomo.linha);
-                break;
-            case MENORIGUAL:
-                printf("\n#%2d:menor_igual", infoAtomo.linha);
-                break;
-            case MAIOR:
-                printf("\n#%2d:maior", infoAtomo.linha);
-                break;
-            case MAIORIGUAL:
-                printf("\n#%2d:maior_igual", infoAtomo.linha);
-                break;
-            case DIFERENTE:
-                printf("\n#%2d:diferente", infoAtomo.linha);
-                break;
-            case ASSIGN:
-                printf("\n#%2d:atribuição", infoAtomo.linha);
-                break;
-            case THEN:
-                printf("\n#%2d:then", infoAtomo.linha);
-                break;
-            case BOOLEAN:
-                printf("\n#%2d:boolean", infoAtomo.linha);
-                break;
-            case IF:
-                printf("\n#%2d:if", infoAtomo.linha);
-                break;
-            case ELSE:
-                printf("\n#%2d:else", infoAtomo.linha);
-                break;
-            case WHILE:
-                printf("\n#%2d:while", infoAtomo.linha);
-                break;
-            case DO:
-                printf("\n#%2d:do", infoAtomo.linha);
-                break;
-            case OR:
-                printf("\n#%2d:or", infoAtomo.linha);
-                break;
-            case AND:
-                printf("\n#%2d:and", infoAtomo.linha);
-                break;
-            case NOT:
-                printf("\n#%2d:not", infoAtomo.linha);
-                break;
-            case TRUE:
-                printf("\n#%2d:true", infoAtomo.linha);
-                break;
-            case FALSE:
-                printf("\n#%2d:false", infoAtomo.linha);
-                break;
-            case OP_DIV:
-                printf("\n#%2d:div", infoAtomo.linha);
-                break;
-            case OP_MULT:
-                printf("\n#%2d:mult", infoAtomo.linha);
-                break;
-            case OP_SOMA:
-                printf("\n#%2d:soma", infoAtomo.linha);
-                break;
-            case OP_SUB:
-                printf("\n#%2d:sub", infoAtomo.linha);
-                break;
-            default:
-                printf("");
-        }
         infoAtomo = obter_atomo();
         lookahead = infoAtomo.atomo;
 
         while (lookahead == COMENTARIO) {
-            printf("\n#%2d:comentario", infoAtomo.linha);
             infoAtomo = obter_atomo();
             lookahead = infoAtomo.atomo;
         }
@@ -800,4 +792,83 @@ void consome(TAtomo atomo) {
         printf("\n#%2d:erro sintatico, esperado [%s] encontrado [%s]\n", infoAtomo.linha, strMensagem[atomo], strMensagem[lookahead]);
         exit(1);
     }
+}
+
+/*
+função hashMack: implementa a dispersão padrão para um hash, 
+usa um numero primo como tamanho do vetor para minimizar colisões
+*/
+int hashMack( char * s )
+{
+    char *p;
+    unsigned int h = 0, g;
+    for ( p = s; *p != '\0'; p = p + 1 ){
+        h = ( h << 4 ) + (*p);
+        g = h&0xf0000000U;
+        if ( g ){
+            h = h ^ ( g >> 24 );
+            h = h ^ g;
+        }
+    }
+    return h % PRIME_NUMBER;
+}
+
+// Implementação das funções da Tabela de Símbolos
+void inicializa_tabela_simbolos() {
+    for (int i = 0; i < PRIME_NUMBER; i++) {
+        tabelaSimbolos.entradas[i] = NULL;
+    }
+}
+
+//Insere variavel na tabela de simbolos
+void insere_tabela_simbolos(char *id) {
+    int hash = hashMack(id);
+    TNo *atual = tabelaSimbolos.entradas[hash];
+    
+    // Verifica se já existe
+    while (atual != NULL) {
+        if (strcmp(atual->ID, id) == 0) {
+            printf("\n#%2d:erro semantico, variavel '%s' ja declarada\n", infoAtomo.linha, id);
+            exit(1);
+        }
+        atual = atual->prox;
+    }
+    
+    // insere novo simbolo
+    TNo *novo = (TNo *)malloc(sizeof(TNo));
+    strcpy(novo->ID, id);
+    novo->endereco = contadorEndereco++;
+    novo->prox = tabelaSimbolos.entradas[hash];
+    tabelaSimbolos.entradas[hash] = novo;
+}
+
+//busca variavel na tabela de simbolos
+int busca_tabela_simbolos(char *id) {
+    int hash = hashMack(id);
+    TNo *atual = tabelaSimbolos.entradas[hash];
+    while (atual != NULL) {
+        if (strcmp(atual->ID, id) == 0) {
+            return atual->endereco;
+        }
+        atual = atual->prox;
+    }
+    printf("\n#%2d:erro semantico, variavel '%s' nao declarada\n", infoAtomo.linha, id);
+    exit(1);
+}
+
+//mostra a tabela de simbolos para o usuario
+void imprime_tabela_simbolos() {
+    printf("\nTABELA DE SIMBOLOS\n");
+    for (int i = 0; i < PRIME_NUMBER; i++) {
+        TNo *atual = tabelaSimbolos.entradas[i];
+        while (atual != NULL) {
+            printf("Entrada Tabela Simbolos: [%d] => %s | Endereco: %d\n", i, atual->ID, atual->endereco);
+            atual = atual->prox;
+        }
+    }
+}
+
+// busca o proximo rotulo
+int proximo_rotulo() {
+    return contadorRotulo++;
 }
