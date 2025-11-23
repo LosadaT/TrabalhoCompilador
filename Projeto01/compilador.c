@@ -1,4 +1,3 @@
-//Francisco Losada Totaro - 10364673
 //compilar: gcc -Wall -Wno-unused-result -g -Og compilador.c -o compilador
 #include <stdio.h>
 #include <ctype.h>
